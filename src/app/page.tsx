@@ -31,11 +31,11 @@ export default function Home() {
               </p>
               <div className="grid md:grid-cols-2 gap-3">
                 <Link
-                  href="/vercel/next.js"
+                  href="/baransn/arch-flow"
                   className="block p-4 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg transition-all shadow-md hover:shadow-lg group"
                 >
-                  <div className="font-mono text-sm opacity-90">vercel/next.js</div>
-                  <div className="text-xs opacity-75 mt-1">React Framework</div>
+                  <div className="font-mono text-sm opacity-90">baransn/arch-flow</div>
+                  <div className="text-xs opacity-75 mt-1">A project that generates architecture diagrams and animated user flows.</div>
                 </Link>
 
                 <Link
