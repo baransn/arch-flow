@@ -41,16 +41,19 @@ export const blobClient = {
       return memoryBlobs.get(key) || null;
     }
 
-    // Production mode: fetch from Vercel Blob storage
+    // Production mode: use Vercel Blob SDK to list and find the blob
     try {
-      const url = this.getUrl(key);
-      const response = await fetch(url);
+      const { list } = await import('@vercel/blob');
+      const { blobs } = await list({ prefix: key });
 
+      if (blobs.length === 0) {
+        return null;
+      }
+
+      // Fetch the blob content from its URL
+      const response = await fetch(blobs[0].url);
       if (!response.ok) {
-        if (response.status === 404) {
-          return null;
-        }
-        throw new Error(`Failed to fetch blob: ${response.statusText}`);
+        return null;
       }
 
       return await response.text();
