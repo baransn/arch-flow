@@ -7,12 +7,14 @@ export async function saveAnalysis(
   analysis: ArchitectureAnalysis
 ): Promise<string> {
   const key = `${getRepoKey(repo)}/analysis.json`;
+  console.log(`[Storage] Saving analysis with key: ${key}`);
 
   const { url } = await blobClient.put(key, JSON.stringify(analysis), {
     access: 'public',
     addRandomSuffix: false,
   });
 
+  console.log(`[Storage] Saved analysis at URL: ${url}`);
   return url;
 }
 

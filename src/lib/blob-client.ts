@@ -44,15 +44,29 @@ export const blobClient = {
     // Production mode: use Vercel Blob SDK to list and find the blob
     try {
       const { list } = await import('@vercel/blob');
-      const { blobs } = await list({ prefix: key });
 
-      if (blobs.length === 0) {
+      // List all blobs with this prefix
+      const { blobs } = await list({ prefix: key });
+      console.log(`[Blob] Looking for key: ${key}, found ${blobs.length} blobs`);
+
+      if (blobs.length > 0) {
+        console.log(`[Blob] First blob pathname: ${blobs[0].pathname}`);
+      }
+
+      // Find exact match
+      const exactMatch = blobs.find(b => b.pathname === key);
+
+      if (!exactMatch) {
+        console.log(`[Blob] No exact match found for ${key}`);
         return null;
       }
 
+      console.log(`[Blob] Found blob at URL: ${exactMatch.url}`);
+
       // Fetch the blob content from its URL
-      const response = await fetch(blobs[0].url);
+      const response = await fetch(exactMatch.url);
       if (!response.ok) {
+        console.error(`[Blob] Failed to fetch blob: ${response.status}`);
         return null;
       }
 
