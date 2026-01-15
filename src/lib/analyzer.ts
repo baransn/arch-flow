@@ -238,8 +238,12 @@ CRITICAL OUTPUT FORMAT REQUIREMENTS:
 Make the diagram accurate to the actual architecture found in the code.`;
 
     const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 4096,
+      model: 'claude-opus-4-5-20251101',
+      max_tokens: 16000,
+      thinking: {
+        type: 'enabled',
+        budget_tokens: 10000,
+      },
       messages: [{
         role: 'user',
         content: prompt,
