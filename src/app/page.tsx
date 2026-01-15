@@ -39,57 +39,30 @@ export default function Home() {
                 </Link>
 
                 <Link
-                  href="/facebook/react"
+                  href="/open-webui/open-webui"
                   className="block p-4 bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white rounded-lg transition-all shadow-md hover:shadow-lg group"
                 >
-                  <div className="font-mono text-sm opacity-90">facebook/react</div>
+                  <div className="font-mono text-sm opacity-90">open-webui/open-webui</div>
                   <div className="text-xs opacity-75 mt-1">UI Library</div>
                 </Link>
 
                 <Link
-                  href="/microsoft/vscode"
+                  href="/TryGhost/Ghost"
                   className="block p-4 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-lg transition-all shadow-md hover:shadow-lg group"
                 >
-                  <div className="font-mono text-sm opacity-90">microsoft/vscode</div>
-                  <div className="text-xs opacity-75 mt-1">Code Editor</div>
+                  <div className="font-mono text-sm opacity-90">TryGhost/Ghost</div>
+                  <div className="text-xs opacity-75 mt-1">Open Source CMS</div>
                 </Link>
 
                 <Link
-                  href="/anthropics/anthropic-sdk-typescript"
+                  href="/BerriAI/litellm"
                   className="block p-4 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white rounded-lg transition-all shadow-md hover:shadow-lg group"
                 >
-                  <div className="font-mono text-sm opacity-90">anthropics/anthropic-sdk-typescript</div>
-                  <div className="text-xs opacity-75 mt-1">Claude SDK</div>
+                  <div className="font-mono text-sm opacity-90">BerriAI/litellm</div>
+                  <div className="text-xs opacity-75 mt-1">litellm </div>
                 </Link>
               </div>
             </div>
-          </div>
-        </div>
-
-        {/* Features */}
-        <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-          <div className="text-center p-6 bg-white dark:bg-gray-800 rounded-xl shadow-lg">
-            <div className="text-4xl mb-4">🏗️</div>
-            <h3 className="text-lg font-semibold mb-2">Auto-Generate Diagrams</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              AI-powered analysis creates accurate architecture diagrams from your codebase
-            </p>
-          </div>
-
-          <div className="text-center p-6 bg-white dark:bg-gray-800 rounded-xl shadow-lg">
-            <div className="text-4xl mb-4">🎬</div>
-            <h3 className="text-lg font-semibold mb-2">Animated Flows</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Watch requests flow through your system end-to-end with interactive animations
-            </p>
-          </div>
-
-          <div className="text-center p-6 bg-white dark:bg-gray-800 rounded-xl shadow-lg">
-            <div className="text-4xl mb-4">⚡</div>
-            <h3 className="text-lg font-semibold mb-2">Instant Results</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Cached analyses mean returning visitors get instant access to diagrams
-            </p>
           </div>
         </div>
       </div>

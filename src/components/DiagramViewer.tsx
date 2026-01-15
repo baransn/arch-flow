@@ -100,8 +100,12 @@ export default function DiagramViewer({ analysis }: DiagramViewerProps) {
       // Clear previous highlights before adding new ones
       clearHighlights();
 
-      // Highlight nodes and arrows sequentially (await ensures no overlap)
-      await highlightNode(step.node, step.duration, step.step);
+      // Use double requestAnimationFrame to ensure highlight happens after all DOM updates
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          highlightNode(step.node, step.duration, step.step);
+        });
+      });
 
       stepIndex++;
       timeoutId = setTimeout(animateStep, step.duration);
@@ -115,7 +119,7 @@ export default function DiagramViewer({ analysis }: DiagramViewerProps) {
       if (timeoutId) clearTimeout(timeoutId);
       if (animationTimeoutRef.current) clearTimeout(animationTimeoutRef.current);
     };
-  }, [isAnimating, selectedFlow, analysis.flows, isPaused, currentStep]);
+  }, [isAnimating, selectedFlow, analysis.flows]);
 
   const scrollToActiveStep = (stepNumber: number) => {
     const stepElement = document.getElementById(`step-${stepNumber}`);
@@ -135,8 +139,8 @@ export default function DiagramViewer({ analysis }: DiagramViewerProps) {
     nodes.forEach((node) => {
       const shape = node.querySelector('rect') || node.querySelector('circle') || node.querySelector('polygon');
       if (shape) {
-        (shape as SVGElement).setAttribute('filter', 'none');
-        (shape as SVGElement).setAttribute('transform', 'scale(1)');
+        (shape as SVGElement).style.filter = '';
+        (shape as SVGElement).style.transform = '';
       }
     });
 
@@ -197,69 +201,56 @@ export default function DiagramViewer({ analysis }: DiagramViewerProps) {
     }
   };
 
-  const highlightNode = (nodeName: string, duration: number, stepNumber?: number): Promise<void> => {
-    return new Promise((resolve) => {
-      if (!diagramRef.current) {
-        resolve();
-        return;
-      }
+  const highlightNode = (nodeName: string, duration: number, stepNumber?: number): void => {
+    if (!diagramRef.current) return;
 
-      // Highlight arrow if step number provided
-      if (stepNumber !== undefined) {
-        highlightArrow(stepNumber, duration);
-      }
+    // Highlight arrow if step number provided
+    if (stepNumber !== undefined) {
+      highlightArrow(stepNumber, duration);
+    }
 
-      const nodes = diagramRef.current.querySelectorAll('.node');
-      let found = false;
+    const nodes = diagramRef.current.querySelectorAll('.node');
+    const normalizedName = nodeName.toLowerCase().trim();
 
-      // Try to find the node by matching the name (case-insensitive, prioritize exact/prefix match)
-      const normalizedName = nodeName.toLowerCase().trim();
+    nodes.forEach((node) => {
+      const label = node.querySelector('.nodeLabel');
+      if (label) {
+        const labelText = label.textContent?.toLowerCase().trim() || '';
 
-      nodes.forEach((node) => {
-        const label = node.querySelector('.nodeLabel');
-        if (label) {
-          const labelText = label.textContent?.toLowerCase().trim() || '';
+        // Remove ALL emojis and their modifiers, then normalize whitespace
+        const cleanLabel = labelText
+          .replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{FE00}-\u{FE0F}\u{200D}]/gu, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
 
-          // Remove emojis and extra whitespace for better matching
-          const cleanLabel = labelText.replace(/[\u{1F300}-\u{1F9FF}]/gu, '').trim();
+        // Try multiple matching strategies:
+        // 1. Exact match
+        // 2. Word-prefix match (first N words)
+        // 3. Substring match (fallback)
+        let matches = cleanLabel === normalizedName;
 
-          // Match if the label starts with the search term (after emoji removal)
-          // This handles cases like:
-          // - nodeName="Client" matches "Client React SPA"
-          // - nodeName="Chat Service" matches "Chat Service Message Handling"
-          // But avoids:
-          // - nodeName="Chat" matching "Channels Group Chat"
+        if (!matches) {
+          // Try word-prefix matching
           const words = normalizedName.split(/\s+/);
           const labelWords = cleanLabel.split(/\s+/);
+          matches = words.every((word, idx) => labelWords[idx] === word);
+        }
 
-          // Check if the first N words of the label match the search term
-          const matches = words.every((word, idx) => labelWords[idx] === word);
+        if (!matches) {
+          // Fallback: check if search term is a substring
+          matches = cleanLabel.includes(normalizedName);
+        }
 
-          if (matches) {
-            const shape = node.querySelector('rect') || node.querySelector('circle') || node.querySelector('polygon');
-            if (shape) {
-              found = true;
-              // Add highlight
-              (shape as SVGElement).setAttribute('filter', 'drop-shadow(0 0 20px rgba(231, 76, 60, 0.9))');
-              (shape as SVGElement).setAttribute('transform', 'scale(1.1)');
-              (shape as SVGElement).style.transformOrigin = 'center';
-              (shape as SVGElement).style.transition = 'all 0.3s ease';
-
-              // Remove after duration
-              setTimeout(() => {
-                (shape as SVGElement).setAttribute('filter', 'none');
-                (shape as SVGElement).setAttribute('transform', 'scale(1)');
-                resolve();
-              }, duration);
-            }
+        if (matches) {
+          const shape = node.querySelector('rect') || node.querySelector('circle') || node.querySelector('polygon');
+          if (shape) {
+            // Add highlight using inline styles (more persistent than attributes)
+            (shape as SVGElement).style.filter = 'drop-shadow(0 0 20px rgba(231, 76, 60, 0.9))';
+            (shape as SVGElement).style.transform = 'scale(1.1)';
+            (shape as SVGElement).style.transformOrigin = 'center';
+            (shape as SVGElement).style.transition = 'all 0.3s ease';
           }
         }
-      });
-
-      if (!found) {
-        // If no match found, just resolve
-        console.warn(`Node not found: ${nodeName}`);
-        setTimeout(() => resolve(), duration);
       }
     });
   };
@@ -281,7 +272,7 @@ export default function DiagramViewer({ analysis }: DiagramViewerProps) {
     setIsPaused(!isPaused);
   };
 
-  const handlePreviousStep = async () => {
+  const handlePreviousStep = () => {
     if (!analysis.flows || analysis.flows.length === 0) return;
     const flow = analysis.flows[selectedFlow];
     if (!flow || !flow.steps) return;
@@ -293,10 +284,10 @@ export default function DiagramViewer({ analysis }: DiagramViewerProps) {
     clearHighlights();
     const step = flow.steps[newStep - 1];
     scrollToActiveStep(newStep);
-    await highlightNode(step.node, 5000, step.step); // 5 second highlight for manual control
+    highlightNode(step.node, 5000, step.step);
   };
 
-  const handleNextStep = async () => {
+  const handleNextStep = () => {
     if (!analysis.flows || analysis.flows.length === 0) return;
     const flow = analysis.flows[selectedFlow];
     if (!flow || !flow.steps) return;
@@ -308,7 +299,7 @@ export default function DiagramViewer({ analysis }: DiagramViewerProps) {
     clearHighlights();
     const step = flow.steps[newStep - 1];
     scrollToActiveStep(newStep);
-    await highlightNode(step.node, 5000, step.step); // 5 second highlight for manual control
+    highlightNode(step.node, 5000, step.step);
   };
 
   return (

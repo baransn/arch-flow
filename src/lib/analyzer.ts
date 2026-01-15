@@ -228,7 +228,14 @@ Include "request" or "response" fields where applicable:
 - "request": For outgoing operations (HTTP requests, SQL queries, cache commands, API calls)
 - "response": For incoming data (HTTP responses, query results, API responses)
 
-Remember: Return ONLY the JSON object, nothing else. Make the diagram accurate to the actual architecture found in the code.`;
+CRITICAL OUTPUT FORMAT REQUIREMENTS:
+- Do NOT include any explanatory text before or after the JSON
+- Do NOT wrap the JSON in markdown code blocks
+- Do NOT add comments or notes
+- Your response must start with { and end with }
+- Return ONLY the raw JSON object
+
+Make the diagram accurate to the actual architecture found in the code.`;
 
     const response = await anthropic.messages.create({
       model: 'claude-sonnet-4-20250514',
@@ -250,18 +257,35 @@ Remember: Return ONLY the JSON object, nothing else. Make the diagram accurate t
     // Try to find JSON in code blocks first
     const codeBlockMatch = jsonText.match(/```(?:json)?\s*\n([\s\S]*?)\n```/);
     if (codeBlockMatch) {
-      jsonText = codeBlockMatch[1];
+      jsonText = codeBlockMatch[1].trim();
     } else {
-      // Try to find JSON object directly
-      const jsonMatch = jsonText.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        jsonText = jsonMatch[0];
+      // Try to find JSON object directly - find first { and last }
+      const firstBrace = jsonText.indexOf('{');
+      const lastBrace = jsonText.lastIndexOf('}');
+
+      if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+        jsonText = jsonText.substring(firstBrace, lastBrace + 1);
       }
     }
 
-    const result = JSON.parse(jsonText);
-    console.log('[Analyzer] Successfully generated diagram with Claude');
+    // Parse and validate JSON
+    let result;
+    try {
+      result = JSON.parse(jsonText);
+    } catch (parseError) {
+      console.error('[Analyzer] Failed to parse JSON from Claude response');
+      console.error('[Analyzer] Raw response:', textContent.text);
+      console.error('[Analyzer] Extracted JSON attempt:', jsonText.substring(0, 500));
+      throw new Error(`Failed to parse Claude response as JSON: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`);
+    }
 
+    // Validate required fields
+    if (!result.diagram || !result.flows) {
+      console.error('[Analyzer] Invalid response structure:', result);
+      throw new Error('Claude response missing required fields (diagram or flows)');
+    }
+
+    console.log('[Analyzer] Successfully generated diagram with Claude');
     return result;
 
   } finally {
