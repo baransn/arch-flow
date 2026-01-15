@@ -11,10 +11,12 @@ interface DiagramViewerProps {
 export default function DiagramViewer({ analysis }: DiagramViewerProps) {
   const [selectedFlow, setSelectedFlow] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const diagramRef = useRef<HTMLDivElement>(null);
   const stepsPanelRef = useRef<HTMLDivElement>(null);
   const [mermaidInitialized, setMermaidInitialized] = useState(false);
+  const animationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Initialize Mermaid
   useEffect(() => {
@@ -73,10 +75,16 @@ export default function DiagramViewer({ analysis }: DiagramViewerProps) {
       return;
     }
 
-    let stepIndex = 0;
+    let stepIndex = currentStep > 0 ? currentStep - 1 : 0;
     let timeoutId: NodeJS.Timeout;
 
     const animateStep = async () => {
+      // Check if paused
+      if (isPaused) {
+        animationTimeoutRef.current = setTimeout(animateStep, 100);
+        return;
+      }
+
       if (stepIndex >= flow.steps.length) {
         setIsAnimating(false);
         setCurrentStep(0);
@@ -97,6 +105,7 @@ export default function DiagramViewer({ analysis }: DiagramViewerProps) {
 
       stepIndex++;
       timeoutId = setTimeout(animateStep, step.duration);
+      animationTimeoutRef.current = timeoutId;
     };
 
     animateStep();
@@ -104,9 +113,9 @@ export default function DiagramViewer({ analysis }: DiagramViewerProps) {
     return () => {
       clearHighlights();
       if (timeoutId) clearTimeout(timeoutId);
-      setCurrentStep(0);
+      if (animationTimeoutRef.current) clearTimeout(animationTimeoutRef.current);
     };
-  }, [isAnimating, selectedFlow, analysis.flows]);
+  }, [isAnimating, selectedFlow, analysis.flows, isPaused, currentStep]);
 
   const scrollToActiveStep = (stepNumber: number) => {
     const stepElement = document.getElementById(`step-${stepNumber}`);
@@ -214,12 +223,19 @@ export default function DiagramViewer({ analysis }: DiagramViewerProps) {
           // Remove emojis and extra whitespace for better matching
           const cleanLabel = labelText.replace(/[\u{1F300}-\u{1F9FF}]/gu, '').trim();
 
-          // Match if:
-          // 1. Search term appears at the start of the label (after emoji)
-          // 2. Or if it's a complete word match at the beginning
-          const startsWithMatch = cleanLabel.startsWith(normalizedName + ' ') || cleanLabel === normalizedName;
+          // Match if the label starts with the search term (after emoji removal)
+          // This handles cases like:
+          // - nodeName="Client" matches "Client React SPA"
+          // - nodeName="Chat Service" matches "Chat Service Message Handling"
+          // But avoids:
+          // - nodeName="Chat" matching "Channels Group Chat"
+          const words = normalizedName.split(/\s+/);
+          const labelWords = cleanLabel.split(/\s+/);
 
-          if (startsWithMatch) {
+          // Check if the first N words of the label match the search term
+          const matches = words.every((word, idx) => labelWords[idx] === word);
+
+          if (matches) {
             const shape = node.querySelector('rect') || node.querySelector('circle') || node.querySelector('polygon');
             if (shape) {
               found = true;
@@ -250,12 +266,49 @@ export default function DiagramViewer({ analysis }: DiagramViewerProps) {
 
   const handleStartAnimation = () => {
     setCurrentStep(0);
+    setIsPaused(false);
     setIsAnimating(true);
   };
 
   const handleStopAnimation = () => {
     setIsAnimating(false);
+    setIsPaused(false);
     setCurrentStep(0);
+    clearHighlights();
+  };
+
+  const handlePauseToggle = () => {
+    setIsPaused(!isPaused);
+  };
+
+  const handlePreviousStep = async () => {
+    if (!analysis.flows || analysis.flows.length === 0) return;
+    const flow = analysis.flows[selectedFlow];
+    if (!flow || !flow.steps) return;
+
+    const newStep = Math.max(1, currentStep - 1);
+    setCurrentStep(newStep);
+
+    // Clear and highlight the previous step
+    clearHighlights();
+    const step = flow.steps[newStep - 1];
+    scrollToActiveStep(newStep);
+    await highlightNode(step.node, 5000, step.step); // 5 second highlight for manual control
+  };
+
+  const handleNextStep = async () => {
+    if (!analysis.flows || analysis.flows.length === 0) return;
+    const flow = analysis.flows[selectedFlow];
+    if (!flow || !flow.steps) return;
+
+    const newStep = Math.min(flow.steps.length, currentStep + 1);
+    setCurrentStep(newStep);
+
+    // Clear and highlight the next step
+    clearHighlights();
+    const step = flow.steps[newStep - 1];
+    scrollToActiveStep(newStep);
+    await highlightNode(step.node, 5000, step.step); // 5 second highlight for manual control
   };
 
   return (
@@ -295,13 +348,42 @@ export default function DiagramViewer({ analysis }: DiagramViewerProps) {
         <div className="flex-[2] bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 flex flex-col">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold">Architecture Diagram</h2>
-            <button
-              onClick={isAnimating ? handleStopAnimation : handleStartAnimation}
-              disabled={!analysis.flows || analysis.flows.length === 0}
-              className="bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold py-2 px-6 rounded-lg hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-            >
-              {isAnimating ? 'Stop Animation' : 'Start Animation'}
-            </button>
+            <div className="flex gap-2">
+              {/* Play/Stop Button */}
+              <button
+                onClick={isAnimating ? handleStopAnimation : handleStartAnimation}
+                disabled={!analysis.flows || analysis.flows.length === 0}
+                className="bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold py-2 px-6 rounded-lg hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              >
+                {isAnimating ? '⏹ Stop' : '▶ Play'}
+              </button>
+
+              {/* Playback Controls (only visible when animating) */}
+              {isAnimating && (
+                <>
+                  <button
+                    onClick={handlePauseToggle}
+                    className="bg-gray-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-700 transition-all"
+                  >
+                    {isPaused ? '▶ Resume' : '⏸ Pause'}
+                  </button>
+                  <button
+                    onClick={handlePreviousStep}
+                    disabled={currentStep <= 1}
+                    className="bg-gray-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  >
+                    ⏮ Back
+                  </button>
+                  <button
+                    onClick={handleNextStep}
+                    disabled={!analysis.flows || currentStep >= analysis.flows[selectedFlow].steps.length}
+                    className="bg-gray-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  >
+                    ⏭ Forward
+                  </button>
+                </>
+              )}
+            </div>
           </div>
 
           {/* Mermaid Diagram */}
