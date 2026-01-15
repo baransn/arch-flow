@@ -32,7 +32,15 @@ export default function ProgressStream({ owner, name }: ProgressStreamProps) {
           throw new Error('Failed to start analysis');
         }
 
-        const { analysisId } = await response.json();
+        const data = await response.json();
+
+        // If analysis is cached, reload the page to show it
+        if (data.cached && data.analysis) {
+          window.location.reload();
+          return;
+        }
+
+        const { analysisId } = data;
 
         // Connect to SSE stream
         eventSource = new EventSource(`/api/stream/${analysisId}`);

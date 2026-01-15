@@ -41,9 +41,23 @@ export const blobClient = {
       return memoryBlobs.get(key) || null;
     }
 
-    // Production mode: construct URL and fetch
-    // Note: In production, we'd use the actual blob URL
-    throw new Error('Production blob get not implemented - use direct URL fetch');
+    // Production mode: fetch from Vercel Blob storage
+    try {
+      const url = this.getUrl(key);
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          return null;
+        }
+        throw new Error(`Failed to fetch blob: ${response.statusText}`);
+      }
+
+      return await response.text();
+    } catch (error) {
+      console.error(`Error fetching blob ${key}:`, error);
+      return null;
+    }
   },
 
   getUrl(key: string): string {
