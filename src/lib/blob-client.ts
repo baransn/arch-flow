@@ -41,30 +41,16 @@ export const blobClient = {
       return memoryBlobs.get(key) || null;
     }
 
-    // Production mode: use Vercel Blob SDK to list and find the blob
+    // Production mode: use Vercel Blob SDK head() to get URL, then fetch
     try {
-      const { list } = await import('@vercel/blob');
+      const { head } = await import('@vercel/blob');
 
-      // List all blobs with this prefix
-      const { blobs } = await list({ prefix: key });
-      console.log(`[Blob] Looking for key: ${key}, found ${blobs.length} blobs`);
-
-      if (blobs.length > 0) {
-        console.log(`[Blob] First blob pathname: ${blobs[0].pathname}`);
-      }
-
-      // Find exact match
-      const exactMatch = blobs.find(b => b.pathname === key);
-
-      if (!exactMatch) {
-        console.log(`[Blob] No exact match found for ${key}`);
-        return null;
-      }
-
-      console.log(`[Blob] Found blob at URL: ${exactMatch.url}`);
+      // Get blob metadata (includes URL)
+      const blob = await head(key);
+      console.log(`[Blob] Found blob for key: ${key} at URL: ${blob.url}`);
 
       // Fetch the blob content from its URL
-      const response = await fetch(exactMatch.url);
+      const response = await fetch(blob.url);
       if (!response.ok) {
         console.error(`[Blob] Failed to fetch blob: ${response.status}`);
         return null;
@@ -72,7 +58,7 @@ export const blobClient = {
 
       return await response.text();
     } catch (error) {
-      console.error(`Error fetching blob ${key}:`, error);
+      console.error(`[Blob] Error fetching blob ${key}:`, error);
       return null;
     }
   },
