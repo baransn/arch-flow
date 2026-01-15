@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { validateRepoUrl, parseGitHubUrl } from '@/lib/github';
 import { createAnalysisJob } from '@/lib/analysis';
-import { hasAnalysis } from '@/lib/storage';
+import { hasAnalysis, getAnalysis } from '@/lib/storage';
 
 export async function POST(request: NextRequest) {
   try {
@@ -37,10 +37,14 @@ export async function POST(request: NextRequest) {
     // Check if we already have a cached analysis
     const cached = await hasAnalysis(repo);
     if (cached) {
-      return NextResponse.json({
-        cached: true,
-        message: 'Analysis already exists',
-      });
+      const analysis = await getAnalysis(repo);
+      if (analysis) {
+        return NextResponse.json({
+          cached: true,
+          analysis: analysis,
+          message: 'Returning cached analysis',
+        });
+      }
     }
 
     // Create a new analysis job
