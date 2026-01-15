@@ -34,9 +34,9 @@ export default function ProgressStream({ owner, name }: ProgressStreamProps) {
 
         const data = await response.json();
 
-        // If analysis is cached, reload the page to show it
-        if (data.cached && data.analysis) {
-          window.location.reload();
+        // If analysis is cached, show error since server-side rendering should have shown it
+        if (data.cached) {
+          setError('Analysis is cached but could not be loaded. Please try again.');
           return;
         }
 
