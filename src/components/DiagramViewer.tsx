@@ -203,7 +203,7 @@ export default function DiagramViewer({ analysis }: DiagramViewerProps) {
       const nodes = diagramRef.current.querySelectorAll('.node');
       let found = false;
 
-      // Try to find the node by matching the name (case-insensitive, partial match)
+      // Try to find the node by matching the name (case-insensitive, prioritize exact/prefix match)
       const normalizedName = nodeName.toLowerCase().trim();
 
       nodes.forEach((node) => {
@@ -211,8 +211,15 @@ export default function DiagramViewer({ analysis }: DiagramViewerProps) {
         if (label) {
           const labelText = label.textContent?.toLowerCase().trim() || '';
 
-          // Match if the node name appears in the label text
-          if (labelText.includes(normalizedName)) {
+          // Remove emojis and extra whitespace for better matching
+          const cleanLabel = labelText.replace(/[\u{1F300}-\u{1F9FF}]/gu, '').trim();
+
+          // Match if:
+          // 1. Search term appears at the start of the label (after emoji)
+          // 2. Or if it's a complete word match at the beginning
+          const startsWithMatch = cleanLabel.startsWith(normalizedName + ' ') || cleanLabel === normalizedName;
+
+          if (startsWithMatch) {
             const shape = node.querySelector('rect') || node.querySelector('circle') || node.querySelector('polygon');
             if (shape) {
               found = true;
