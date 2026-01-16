@@ -25,7 +25,30 @@ export function getRepoKey(repo: GitHubRepo): string {
 }
 
 export async function downloadRepoTarball(repo: GitHubRepo): Promise<Blob> {
-  const branch = repo.branch || 'main';
+  // If branch is not specified, fetch the default branch from repo metadata
+  let branch = repo.branch;
+
+  if (!branch) {
+    const repoInfoUrl = `https://api.github.com/repos/${repo.owner}/${repo.name}`;
+    const repoInfoResponse = await fetch(repoInfoUrl, {
+      headers: {
+        'Accept': 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+        ...(process.env.GITHUB_TOKEN && {
+          'Authorization': `Bearer ${process.env.GITHUB_TOKEN}`,
+        }),
+      },
+    });
+
+    if (repoInfoResponse.ok) {
+      const repoInfo = await repoInfoResponse.json();
+      branch = repoInfo.default_branch || 'main';
+    } else {
+      // Fallback to main if we can't get repo info
+      branch = 'main';
+    }
+  }
+
   const url = `https://api.github.com/repos/${repo.owner}/${repo.name}/tarball/${branch}`;
 
   const response = await fetch(url, {

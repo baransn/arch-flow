@@ -1,0 +1,8 @@
+# Large files
+*.mov
+explainer-1024.mov
+
+# Development files
+Ghost-main
+venv
+*.html
